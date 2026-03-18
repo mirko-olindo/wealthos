@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WealthOS — Portfolio Intelligence</title>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #f8f7f5; --bg2: #ffffff; --bg3: #f1f0ed;
+      --text: #1a1a18; --text2: #6b6a66; --text3: #9e9d99;
+      --border: rgba(0,0,0,0.08); --border2: rgba(0,0,0,0.14);
+      --green: #1D9E75; --red: #D85A30; --blue: #378ADD;
+      --amber: #BA7517; --purple: #7F77DD;
+      --r: 8px; --rl: 12px;
+      --sidebar-w: 220px;
+    }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); font-size: 14px; }
+    #root { display: flex; height: 100vh; overflow: hidden; }
+
+    /* Sidebar */
+    .sidebar { width: var(--sidebar-w); flex-shrink: 0; background: var(--bg2); border-right: 0.5px solid var(--border); display: flex; flex-direction: column; overflow-y: auto; }
+    .sidebar-logo { padding: 20px 16px 14px; border-bottom: 0.5px solid var(--border); }
+    .sidebar-logo .brand { font-size: 15px; font-weight: 600; letter-spacing: -0.02em; }
+    .sidebar-logo .sub { font-size: 11px; color: var(--text3); margin-top: 2px; }
+    .nav-section { padding: 12px 8px 4px; }
+    .nav-label { font-size: 10px; font-weight: 500; color: var(--text3); padding: 0 8px 4px; letter-spacing: 0.07em; text-transform: uppercase; display: block; }
+    .nav-item { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 6px; cursor: pointer; font-size: 13px; color: var(--text2); transition: background 0.1s; user-select: none; }
+    .nav-item:hover { background: var(--bg3); }
+    .nav-item.active { background: var(--bg3); color: var(--text); font-weight: 500; }
+    .nav-item svg { opacity: 0.65; flex-shrink: 0; }
+
+    /* Main */
+    .main { flex: 1; overflow: auto; display: flex; flex-direction: column; min-width: 0; }
+    .topbar { background: var(--bg2); border-bottom: 0.5px solid var(--border); padding: 11px 24px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; position: sticky; top: 0; z-index: 10; }
+    .topbar-title { font-size: 14px; font-weight: 500; }
+    .filters { display: flex; gap: 8px; }
+    .filter-select { font-size: 12px; padding: 5px 10px; border: 0.5px solid var(--border2); border-radius: var(--r); background: var(--bg3); color: var(--text); cursor: pointer; }
+    .content { padding: 20px 24px; flex: 1; }
+
+    /* KPI */
+    .kpi-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 12px; margin-bottom: 20px; }
+    .kpi-card { background: var(--bg3); border-radius: var(--r); padding: 14px 16px; }
+    .kpi-label { font-size: 10px; color: var(--text2); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.06em; }
+    .kpi-value { font-size: 22px; font-weight: 600; line-height: 1; letter-spacing: -0.03em; }
+    .kpi-sub { font-size: 11px; margin-top: 5px; color: var(--text3); }
+    .kpi-sub.pos { color: var(--green); }
+    .kpi-sub.neg { color: var(--red); }
+
+    /* Cards */
+    .card { background: var(--bg2); border: 0.5px solid var(--border); border-radius: var(--rl); padding: 16px 20px; }
+    .card-title { font-size: 10px; font-weight: 500; color: var(--text2); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 14px; }
+    .charts-row { display: grid; grid-template-columns: 1.3fr 0.7fr; gap: 16px; margin-bottom: 16px; }
+    .bottom-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+    /* Tables */
+    .data-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .data-table th { color: var(--text3); font-weight: 400; text-align: left; padding: 0 8px 10px 0; font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; }
+    .data-table td { padding: 7px 8px 7px 0; border-top: 0.5px solid var(--border); color: var(--text); }
+    .data-table td.pos { color: var(--green); }
+    .data-table td.neg { color: var(--red); }
+    .data-table tr:hover td { background: var(--bg3); }
+    .pill { display: inline-block; padding: 2px 7px; border-radius: 10px; font-size: 10px; font-weight: 500; }
+    .pill-liquid { background: #E1F5EE; color: #0F6E56; }
+    .pill-illiquid { background: #FAEEDA; color: #854F0B; }
+    .pill-alt { background: #EEEDFE; color: #534AB7; }
+    .pill-pe { background: #E6F1FB; color: #185FA5; }
+    .pill-pdf { background: #FAECE7; color: #993C1D; }
+    .pill-xls { background: #EAF3DE; color: #3B6D11; }
+    .pill-nav { background: #E6F1FB; color: #185FA5; }
+    .pill-pending { background: #FAEEDA; color: #854F0B; }
+    .pill-done { background: #E1F5EE; color: #0F6E56; }
+    .pill-failed { background: #FCEBEB; color: #A32D2D; }
+
+    /* Cash flow bars */
+    .cf-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+    .cf-year { width: 34px; font-size: 11px; color: var(--text2); text-align: right; }
+    .cf-track { flex: 1; height: 14px; background: var(--bg3); border-radius: 3px; overflow: hidden; display: flex; }
+    .cf-in { height: 100%; background: var(--green); }
+    .cf-out { height: 100%; background: var(--red); opacity: 0.7; }
+    .cf-val { font-size: 10px; color: var(--text2); min-width: 56px; text-align: right; }
+
+    /* Upload */
+    .upload-zone { border: 1.5px dashed var(--border2); border-radius: var(--rl); padding: 24px; text-align: center; cursor: pointer; transition: background 0.15s; }
+    .upload-zone:hover, .upload-zone.drag { background: var(--bg3); border-color: var(--blue); }
+    .upload-icon { font-size: 24px; margin-bottom: 8px; }
+    .upload-text-main { font-size: 13px; font-weight: 500; margin-bottom: 4px; }
+    .upload-text-sub { font-size: 11px; color: var(--text3); }
+
+    /* Buttons */
+    .btn { padding: 6px 14px; border-radius: var(--r); border: 0.5px solid var(--border2); background: var(--bg3); color: var(--text); font-size: 12px; cursor: pointer; transition: background 0.1s; }
+    .btn:hover { background: var(--border); }
+    .btn-primary { background: var(--text); color: var(--bg2); border-color: transparent; }
+    .btn-primary:hover { opacity: 0.85; }
+    .btn-sm { padding: 4px 10px; font-size: 11px; }
+
+    /* Forms */
+    .form-row { margin-bottom: 12px; }
+    .form-label { display: block; font-size: 11px; color: var(--text2); margin-bottom: 4px; }
+    .form-input { width: 100%; padding: 7px 10px; border: 0.5px solid var(--border2); border-radius: var(--r); font-size: 13px; background: var(--bg2); color: var(--text); }
+    .form-input:focus { outline: none; border-color: var(--blue); }
+    .form-select { width: 100%; padding: 7px 10px; border: 0.5px solid var(--border2); border-radius: var(--r); font-size: 13px; background: var(--bg2); color: var(--text); }
+
+    /* Modal */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.35); display: flex; align-items: center; justify-content: center; z-index: 100; }
+    .modal { background: var(--bg2); border-radius: var(--rl); padding: 24px; width: 480px; max-width: 95vw; max-height: 90vh; overflow-y: auto; }
+    .modal-title { font-size: 15px; font-weight: 500; margin-bottom: 18px; }
+    .modal-footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
+
+    /* Misc */
+    .legend-row { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; }
+    .legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text2); }
+    .legend-dot { width: 8px; height: 8px; border-radius: 2px; }
+    .empty-state { text-align: center; padding: 40px 20px; color: var(--text3); font-size: 13px; }
+    .tag { display: inline-block; padding: 3px 8px; border-radius: 5px; font-size: 10px; background: var(--bg3); color: var(--text2); border: 0.5px solid var(--border); margin: 2px; }
+    .status-dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; margin-right: 4px; }
+    .link-btn { background: none; border: none; color: var(--blue); font-size: 11px; cursor: pointer; padding: 0; }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback } = React;
+const API = "";  // stesso origine, cambia in http://localhost:8000 se dev separato
+
+// ─── API helpers ─────────────────────────────────────────────────────────────
+const api = {
+  get: (path) => fetch(API + "/api" + path).then(r => r.json()),
+  post: (path, body) => fetch(API + "/api" + path, { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify(body) }).then(r => r.json()),
+  del: (path) => fetch(API + "/api" + path, { method: "DELETE" }).then(r => r.json()),
+  upload: (path, formData) => fetch(API + "/api" + path, { method: "POST", body: formData }).then(r => r.json()),
+};
+
+// ─── Icons ────────────────────────────────────────────────────────────────────
+const Icon = ({ name, size=16 }) => {
+  const icons = {
+    dashboard: <><rect x="1" y="9" width="4" height="6" rx="1" fill="currentColor"/><rect x="6" y="5" width="4" height="10" rx="1" fill="currentColor"/><rect x="11" y="1" width="4" height="14" rx="1" fill="currentColor"/></>,
+    vehicles: <><rect x="2" y="4" width="12" height="9" rx="1.5" stroke="currentColor" strokeWidth="1.2" fill="none"/><path d="M5 4V3a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1" stroke="currentColor" strokeWidth="1.2" fill="none"/></>,
+    documents: <><path d="M4 2h6l4 4v8a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z" stroke="currentColor" strokeWidth="1.2" fill="none"/><path d="M10 2v4h4" stroke="currentColor" strokeWidth="1.2" fill="none"/></>,
+    cashflow: <><path d="M2 10L6 6l4 3 4-5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" fill="none"/></>,
+    upload: <><path d="M8 3v10M3 8l5-5 5 5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" fill="none"/></>,
+    plus: <><path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></>,
+    refresh: <><path d="M13 3A6 6 0 1 0 14 9" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" fill="none"/><path d="M14 3v4h-4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" fill="none"/></>,
+    trash: <><path d="M3 5h10M8 8v5M6 8v5M5 5V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1M6 14h4a1 1 0 0 0 1-1V5H5v8a1 1 0 0 0 1 1z" stroke="currentColor" strokeWidth="1.2" fill="none" strokeLinecap="round"/></>,
+  };
+  return <svg width={size} height={size} viewBox="0 0 16 16" fill="none">{icons[name]}</svg>;
+};
+
+// ─── Formatters ───────────────────────────────────────────────────────────────
+const fmt = {
+  eur: v => v == null ? "—" : "€ " + Number(v).toLocaleString("it-IT", {minimumFractionDigits:0, maximumFractionDigits:0}),
+  pct: v => v == null ? "—" : v.toFixed(1) + "%",
+  mult: v => v == null ? "—" : v.toFixed(2) + "×",
+  date: v => v ? new Date(v).toLocaleDateString("it-IT") : "—",
+};
+
+// ─── Charts ───────────────────────────────────────────────────────────────────
+function NavChart({ data }) {
+  const ref = useRef(null);
+  const chartRef = useRef(null);
+  useEffect(() => {
+    if (!data || !data.length) return;
+    if (chartRef.current) chartRef.current.destroy();
+    // Aggrega per data (somma tutti i veicoli)
+    const byDate = {};
+    data.forEach(p => { byDate[p.date] = (byDate[p.date] || 0) + p.nav; });
+    const labels = Object.keys(byDate).sort();
+    const values = labels.map(d => byDate[d]);
+    chartRef.current = new Chart(ref.current, {
+      type: "line",
+      data: {
+        labels: labels.map(d => d.substring(0,7)),
+        datasets: [{ data: values, borderColor: "#378ADD", backgroundColor: "rgba(55,138,221,0.07)", fill: true, tension: 0.4, pointRadius: 2.5, pointBackgroundColor: "#378ADD", borderWidth: 2 }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { color: "#9e9d99", font: { size: 10 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 8 }, grid: { color: "rgba(0,0,0,0.04)" } },
+          y: { ticks: { color: "#9e9d99", font: { size: 10 }, callback: v => "€" + (v/1e6).toFixed(1) + "M" }, grid: { color: "rgba(0,0,0,0.04)" } }
+        }
+      }
+    });
+    return () => chartRef.current?.destroy();
+  }, [data]);
+  if (!data?.length) return <div className="empty-state">Nessun dato NAV disponibile</div>;
+  return <div style={{position:"relative", height:200}}><canvas ref={ref}/></div>;
+}
+
+function AllocChart({ data }) {
+  const ref = useRef(null);
+  const chartRef = useRef(null);
+  const colors = ["#378ADD","#1D9E75","#BA7517","#7F77DD","#888780","#D85A30","#5DCAA5"];
+  useEffect(() => {
+    if (!data || !data.length) return;
+    if (chartRef.current) chartRef.current.destroy();
+    chartRef.current = new Chart(ref.current, {
+      type: "doughnut",
+      data: {
+        labels: data.map(d => d.asset_class),
+        datasets: [{ data: data.map(d => d.nav_value), backgroundColor: colors, borderWidth: 0, hoverOffset: 4 }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false, cutout: "68%",
+        plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ctx.label + ": " + fmt.eur(ctx.parsed) + " (" + ctx.dataset.data.reduce((a,b)=>a+b,0) > 0 ? (ctx.parsed / ctx.dataset.data.reduce((a,b)=>a+b,0) * 100).toFixed(1) : 0) + "%)" } } }
+      }
+    });
+    return () => chartRef.current?.destroy();
+  }, [data]);
+  if (!data?.length) return <div className="empty-state">Nessun dato</div>;
+  return (
+    <div>
+      <div className="legend-row">
+        {data.map((d,i) => <div key={i} className="legend-item"><div className="legend-dot" style={{background: colors[i % colors.length]}}/>{d.asset_class} {d.percentage}%</div>)}
+      </div>
+      <div style={{position:"relative", height:140}}><canvas ref={ref}/></div>
+    </div>
+  );
+}
+
+// ─── Views ────────────────────────────────────────────────────────────────────
+
+function DashboardView() {
+  const [kpi, setKpi] = useState(null);
+  const [alloc, setAlloc] = useState([]);
+  const [cf, setCf] = useState([]);
+  const [navHistory, setNavHistory] = useState([]);
+  const [vehicles, setVehicles] = useState([]);
+
+  useEffect(() => {
+    api.get("/dashboard/kpi").then(setKpi).catch(()=>{});
+    api.get("/dashboard/allocation").then(setAlloc).catch(()=>{});
+    api.get("/dashboard/cashflow").then(setCf).catch(()=>{});
+    api.get("/dashboard/nav-history").then(setNavHistory).catch(()=>{});
+    api.get("/dashboard/vehicles-summary").then(setVehicles).catch(()=>{});
+  }, []);
+
+  const maxCf = Math.max(...cf.map(r => r.inflows + r.outflows), 1);
+
+  return (
+    <div>
+      <div className="kpi-grid">
+        <div className="kpi-card"><div className="kpi-label">NAV Totale</div><div className="kpi-value">{kpi ? fmt.eur(kpi.total_nav) : "—"}</div><div className="kpi-sub">{kpi?.total_vehicles} veicoli attivi</div></div>
+        <div className="kpi-card"><div className="kpi-label">Capitale Investito</div><div className="kpi-value">{kpi ? fmt.eur(kpi.total_invested) : "—"}</div><div className="kpi-sub">Capital calls totali</div></div>
+        <div className="kpi-card"><div className="kpi-label">Distribuzioni</div><div className="kpi-value">{kpi ? fmt.eur(kpi.total_distributions) : "—"}</div><div className="kpi-sub pos">Ricevute totali</div></div>
+        <div className="kpi-card"><div className="kpi-label">TVPI Medio</div><div className="kpi-value">{kpi ? fmt.mult(kpi.avg_tvpi) : "—"}</div><div className="kpi-sub">{kpi?.total_documents} documenti caricati</div></div>
+      </div>
+
+      <div className="charts-row">
+        <div className="card"><div className="card-title">Storico NAV portafoglio</div><NavChart data={navHistory}/></div>
+        <div className="card"><div className="card-title">Allocazione per asset class</div><AllocChart data={alloc}/></div>
+      </div>
+
+      <div className="bottom-row">
+        <div className="card">
+          <div className="card-title">Cash flow annuale</div>
+          {cf.length ? cf.map(r => (
+            <div key={r.year} className="cf-row">
+              <div className="cf-year">{r.year}</div>
+              <div className="cf-track">
+                <div className="cf-in" style={{width: (r.inflows/maxCf*100)+"%"}}/>
+                <div className="cf-out" style={{width: (r.outflows/maxCf*100)+"%"}}/>
+              </div>
+              <div className="cf-val" style={{color: r.net >= 0 ? "var(--green)" : "var(--red)"}}>{r.net >= 0 ? "+" : ""}{fmt.eur(r.net)}</div>
+            </div>
+          )) : <div className="empty-state">Nessun dato</div>}
+          <div className="legend-row" style={{marginTop:10}}>
+            <div className="legend-item"><div className="legend-dot" style={{background:"var(--green)"}}/> Distribuzioni</div>
+            <div className="legend-item"><div className="legend-dot" style={{background:"var(--red)"}}/> Capital call</div>
+          </div>
+        </div>
+
+        <div className="card">
+          <div className="card-title">Performance per veicolo</div>
+          {vehicles.length ? (
+            <table className="data-table">
+              <thead><tr><th>Veicolo</th><th>NAV</th><th>TVPI</th><th>IRR</th></tr></thead>
+              <tbody>
+                {vehicles.slice(0,6).map(v => (
+                  <tr key={v.id}>
+                    <td>{v.name}</td>
+                    <td>{fmt.eur(v.latest_nav)}</td>
+                    <td className={v.tvpi >= 1 ? "pos" : "neg"}>{fmt.mult(v.tvpi)}</td>
+                    <td className={v.irr >= 0 ? "pos" : "neg"}>{v.irr != null ? v.irr.toFixed(1)+"%" : "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : <div className="empty-state">Aggiungi veicoli per vedere le performance</div>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function VehiclesView() {
+  const [vehicles, setVehicles] = useState([]);
+  const [showModal, setShowModal] = useState(false);
+  const [form, setForm] = useState({ name:"", asset_class:"", manager:"", vehicle_type:"", currency:"EUR", vintage_year:"", commitment:"", notes:"" });
+
+  const load = () => api.get("/vehicles/").then(setVehicles).catch(()=>{});
+  useEffect(() => { load(); }, []);
+
+  const save = async () => {
+    const body = {...form, vintage_year: form.vintage_year ? parseInt(form.vintage_year) : null, commitment: form.commitment ? parseFloat(form.commitment) : null };
+    await api.post("/vehicles/", body);
+    setShowModal(false);
+    setForm({ name:"", asset_class:"", manager:"", vehicle_type:"", currency:"EUR", vintage_year:"", commitment:"", notes:"" });
+    load();
+  };
+
+  const del = async (id) => { if (confirm("Eliminare questo veicolo?")) { await api.del("/vehicles/"+id); load(); } };
+
+  const assetColors = { "Private Equity":"pill-pe", "Real Estate":"pill-liquid", "Hedge Fund":"pill-alt", "Bond":"pill-illiquid" };
+
+  return (
+    <div>
+      <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16}}>
+        <div style={{fontSize:13, color:"var(--text2)"}}>{vehicles.length} veicoli nel portafoglio</div>
+        <button className="btn btn-primary" onClick={()=>setShowModal(true)}>+ Nuovo veicolo</button>
+      </div>
+
+      <div className="card">
+        {vehicles.length ? (
+          <table className="data-table">
+            <thead><tr><th>Nome</th><th>Asset class</th><th>Manager</th><th>Valuta</th><th>Vintage</th><th>Commitment</th><th></th></tr></thead>
+            <tbody>
+              {vehicles.map(v => (
+                <tr key={v.id}>
+                  <td style={{fontWeight:500}}>{v.name}</td>
+                  <td><span className={"pill " + (assetColors[v.asset_class] || "pill-alt")}>{v.asset_class || "—"}</span></td>
+                  <td>{v.manager || "—"}</td>
+                  <td>{v.currency}</td>
+                  <td>{v.vintage_year || "—"}</td>
+                  <td>{fmt.eur(v.commitment)}</td>
+                  <td><button className="link-btn" onClick={()=>del(v.id)}>Elimina</button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : <div className="empty-state">Nessun veicolo ancora. Crea il primo!</div>}
+      </div>
+
+      {showModal && (
+        <div className="modal-overlay" onClick={e=>e.target===e.currentTarget&&setShowModal(false)}>
+          <div className="modal">
+            <div className="modal-title">Nuovo veicolo di investimento</div>
+            {[
+              ["Nome *", "name", "text", null],
+              ["Asset class", "asset_class", "select", ["Private Equity","Real Estate","Hedge Fund","Bond","Equity","Cash","Altro"]],
+              ["Manager / Gestore", "manager", "text", null],
+              ["Tipo veicolo", "vehicle_type", "select", ["fund","direct","bond","listed","other"]],
+              ["Valuta", "currency", "select", ["EUR","USD","GBP","CHF"]],
+              ["Anno vintage", "vintage_year", "number", null],
+              ["Commitment (€)", "commitment", "number", null],
+            ].map(([label, key, type, opts]) => (
+              <div key={key} className="form-row">
+                <label className="form-label">{label}</label>
+                {opts ? (
+                  <select className="form-select" value={form[key]} onChange={e=>setForm({...form,[key]:e.target.value})}>
+                    <option value="">— Seleziona —</option>
+                    {opts.map(o=><option key={o} value={o}>{o}</option>)}
+                  </select>
+                ) : (
+                  <input className="form-input" type={type} value={form[key]} onChange={e=>setForm({...form,[key]:e.target.value})} />
+                )}
+              </div>
+            ))}
+            <div className="form-row">
+              <label className="form-label">Note</label>
+              <textarea className="form-input" rows={2} value={form.notes} onChange={e=>setForm({...form,notes:e.target.value})}/>
+            </div>
+            <div className="modal-footer">
+              <button className="btn" onClick={()=>setShowModal(false)}>Annulla</button>
+              <button className="btn btn-primary" onClick={save} disabled={!form.name}>Salva</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DocumentsView() {
+  const [docs, setDocs] = useState([]);
+  const [vehicles, setVehicles] = useState([]);
+  const [drag, setDrag] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [selectedVehicle, setSelectedVehicle] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("");
+  const fileRef = useRef(null);
+
+  const load = () => {
+    api.get("/documents/").then(setDocs).catch(()=>{});
+    api.get("/vehicles/").then(setVehicles).catch(()=>{});
+  };
+  useEffect(() => { load(); const t = setInterval(load, 5000); return ()=>clearInterval(t); }, []);
+
+  const uploadFile = async (file) => {
+    setUploading(true);
+    const fd = new FormData();
+    fd.append("file", file);
+    if (selectedVehicle) fd.append("vehicle_id", selectedVehicle);
+    if (selectedCategory) fd.append("doc_category", selectedCategory);
+    fd.append("auto_extract", "true");
+    await api.upload("/documents/upload", fd);
+    setUploading(false);
+    load();
+  };
+
+  const handleDrop = e => { e.preventDefault(); setDrag(false); [...e.dataTransfer.files].forEach(uploadFile); };
+  const handleFile = e => [...e.target.files].forEach(uploadFile);
+  const reExtract = async (id) => { await fetch(API+"/api/documents/"+id+"/extract",{method:"POST"}); load(); };
+  const delDoc = async (id) => { if(confirm("Eliminare?")) { await api.del("/documents/"+id); load(); } };
+
+  const statusColor = { pending:"pill-pending", processing:"pill-pending", done:"pill-done", failed:"pill-failed", skipped:"pill-illiquid" };
+  const fileColor = { pdf:"pill-pdf", xlsx:"pill-xls", xls:"pill-xls", csv:"pill-xls", jpg:"pill-pe", png:"pill-pe" };
+  const categories = ["nav_statement","capital_call","distribution","report","statement","other"];
+
+  return (
+    <div>
+      <div className="bottom-row" style={{marginBottom:16}}>
+        <div className="card">
+          <div className="card-title">Carica documenti</div>
+          <div style={{display:"flex", gap:8, marginBottom:10}}>
+            <select className="filter-select" style={{flex:1}} value={selectedVehicle} onChange={e=>setSelectedVehicle(e.target.value)}>
+              <option value="">Veicolo (opzionale)</option>
+              {vehicles.map(v=><option key={v.id} value={v.id}>{v.name}</option>)}
+            </select>
+            <select className="filter-select" style={{flex:1}} value={selectedCategory} onChange={e=>setSelectedCategory(e.target.value)}>
+              <option value="">Categoria (opzionale)</option>
+              {categories.map(c=><option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+          <div
+            className={"upload-zone" + (drag?" drag":"")}
+            onDragOver={e=>{e.preventDefault();setDrag(true)}}
+            onDragLeave={()=>setDrag(false)}
+            onDrop={handleDrop}
+            onClick={()=>fileRef.current?.click()}
+          >
+            <div className="upload-icon">↑</div>
+            <div className="upload-text-main">{uploading ? "Caricamento in corso..." : "Trascina file qui o clicca"}</div>
+            <div className="upload-text-sub">PDF, Excel, CSV, immagini — estrazione automatica con Claude AI</div>
+          </div>
+          <input ref={fileRef} type="file" multiple style={{display:"none"}} accept=".pdf,.xlsx,.xls,.csv,.jpg,.jpeg,.png" onChange={handleFile}/>
+          <div style={{marginTop:10}}>
+            {["Capital Call","NAV Statement","Distribution","Report","Statement"].map(t=><span key={t} className="tag">{t}</span>)}
+          </div>
+        </div>
+
+        <div className="card">
+          <div className="card-title">Repository — {docs.length} documenti</div>
+          <div style={{display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8}}>
+            {[
+              ["Totali", docs.length, "var(--text)"],
+              ["Estratti", docs.filter(d=>d.extraction_status==="done").length, "var(--green)"],
+              ["In attesa", docs.filter(d=>["pending","processing"].includes(d.extraction_status)).length, "var(--amber)"],
+              ["Falliti", docs.filter(d=>d.extraction_status==="failed").length, "var(--red)"],
+              ["PDF", docs.filter(d=>d.file_type==="pdf").length, "var(--text2)"],
+              ["Excel/CSV", docs.filter(d=>["xlsx","xls","csv"].includes(d.file_type)).length, "var(--text2)"],
+            ].map(([label, val, color]) => (
+              <div key={label} className="kpi-card" style={{padding:"10px 12px"}}>
+                <div className="kpi-label">{label}</div>
+                <div style={{fontSize:18, fontWeight:600, color}}>{val}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="card">
+        {docs.length ? (
+          <table className="data-table">
+            <thead><tr><th>File</th><th>Tipo</th><th>Categoria</th><th>Veicolo</th><th>Data doc</th><th>Stato</th><th>Caricato</th><th></th></tr></thead>
+            <tbody>
+              {docs.map(d => {
+                const veh = vehicles.find(v=>v.id===d.vehicle_id);
+                return (
+                  <tr key={d.id}>
+                    <td style={{maxWidth:200, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap"}} title={d.original_filename}>{d.original_filename}</td>
+                    <td><span className={"pill " + (fileColor[d.file_type]||"pill-alt")}>{d.file_type?.toUpperCase()}</span></td>
+                    <td>{d.doc_category ? <span className="tag">{d.doc_category}</span> : "—"}</td>
+                    <td>{veh?.name || "—"}</td>
+                    <td>{fmt.date(d.doc_date)}</td>
+                    <td><span className={"pill " + (statusColor[d.extraction_status]||"")}>{d.extraction_status}</span></td>
+                    <td>{fmt.date(d.uploaded_at)}</td>
+                    <td style={{display:"flex", gap:8}}>
+                      <button className="link-btn" onClick={()=>reExtract(d.id)} title="Ri-estrai"><Icon name="refresh" size={13}/></button>
+                      <button className="link-btn" style={{color:"var(--red)"}} onClick={()=>delDoc(d.id)} title="Elimina"><Icon name="trash" size={13}/></button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        ) : <div className="empty-state">Nessun documento ancora. Carica il primo!</div>}
+      </div>
+    </div>
+  );
+}
+
+function CashFlowView() {
+  const [cf, setCf] = useState([]);
+  const [dists, setDists] = useState([]);
+  const [ccs, setCcs] = useState([]);
+  const [vehicles, setVehicles] = useState([]);
+
+  useEffect(() => {
+    api.get("/dashboard/cashflow").then(setCf).catch(()=>{});
+    api.get("/vehicles/").then(async vs => {
+      setVehicles(vs);
+      const allDists = [], allCcs = [];
+      for (const v of vs) {
+        const d = await api.get("/vehicles/"+v.id+"/distributions");
+        const c = await api.get("/vehicles/"+v.id+"/capital-calls");
+        d.forEach(x=>allDists.push({...x, vehicle_name:v.name}));
+        c.forEach(x=>allCcs.push({...x, vehicle_name:v.name}));
+      }
+      setDists(allDists.sort((a,b)=>b.payment_date.localeCompare(a.payment_date)));
+      setCcs(allCcs.sort((a,b)=>b.call_date.localeCompare(a.call_date)));
+    }).catch(()=>{});
+  }, []);
+
+  return (
+    <div>
+      <div className="bottom-row" style={{marginBottom:16}}>
+        {cf.map(r => (
+          <div key={r.year} className="kpi-card" style={{display:"flex", justifyContent:"space-between", alignItems:"center"}}>
+            <div>
+              <div className="kpi-label">{r.year}</div>
+              <div className="kpi-value" style={{fontSize:16, color: r.net>=0?"var(--green)":"var(--red)"}}>{r.net>=0?"+":""}{fmt.eur(r.net)}</div>
+            </div>
+            <div style={{textAlign:"right", fontSize:11, color:"var(--text3)"}}>
+              <div>↑ {fmt.eur(r.inflows)}</div>
+              <div>↓ {fmt.eur(r.outflows)}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="bottom-row">
+        <div className="card">
+          <div className="card-title">Distribuzioni ricevute</div>
+          {dists.length ? (
+            <table className="data-table">
+              <thead><tr><th>Data</th><th>Veicolo</th><th>Importo</th><th>Tipo</th></tr></thead>
+              <tbody>
+                {dists.slice(0,20).map(d=>(
+                  <tr key={d.id}>
+                    <td>{fmt.date(d.payment_date)}</td>
+                    <td>{d.vehicle_name}</td>
+                    <td className="pos">{fmt.eur(d.amount)}</td>
+                    <td>{d.distribution_type || "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : <div className="empty-state">Nessuna distribuzione</div>}
+        </div>
+
+        <div className="card">
+          <div className="card-title">Capital call</div>
+          {ccs.length ? (
+            <table className="data-table">
+              <thead><tr><th>Data</th><th>Veicolo</th><th>Importo</th><th>Scadenza</th></tr></thead>
+              <tbody>
+                {ccs.slice(0,20).map(c=>(
+                  <tr key={c.id}>
+                    <td>{fmt.date(c.call_date)}</td>
+                    <td>{c.vehicle_name}</td>
+                    <td className="neg">{fmt.eur(c.amount)}</td>
+                    <td>{fmt.date(c.due_date)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : <div className="empty-state">Nessuna capital call</div>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── App shell ────────────────────────────────────────────────────────────────
+const VIEWS = [
+  { id: "dashboard", label: "Dashboard", icon: "dashboard", section: "Overview" },
+  { id: "cashflow", label: "Cash Flow", icon: "cashflow", section: "Overview" },
+  { id: "vehicles", label: "Veicoli", icon: "vehicles", section: "Portafoglio" },
+  { id: "documents", label: "Documenti", icon: "documents", section: "Repository" },
+  { id: "upload", label: "Carica", icon: "upload", section: "Repository" },
+];
+
+export default function App() {
+  const [view, setView] = useState("dashboard");
+
+  const sections = [...new Set(VIEWS.map(v=>v.section))];
+
+  const renderView = () => {
+    if (view === "dashboard") return <DashboardView/>;
+    if (view === "vehicles") return <VehiclesView/>;
+    if (view === "documents" || view === "upload") return <DocumentsView/>;
+    if (view === "cashflow") return <CashFlowView/>;
+    return null;
+  };
+
+  const topbarTitles = { dashboard:"Dashboard portafoglio", cashflow:"Cash Flow & Distribuzioni", vehicles:"Veicoli di investimento", documents:"Repository documenti", upload:"Repository documenti" };
+
+  return (
+    <div id="root">
+      <div className="sidebar">
+        <div className="sidebar-logo">
+          <div className="brand">WealthOS</div>
+          <div className="sub">Portfolio Intelligence</div>
+        </div>
+        {sections.map(section => (
+          <div key={section} className="nav-section">
+            <span className="nav-label">{section}</span>
+            {VIEWS.filter(v=>v.section===section).map(v=>(
+              <div key={v.id} className={"nav-item" + (view===v.id?" active":"")} onClick={()=>setView(v.id)}>
+                <Icon name={v.icon} size={15}/>
+                {v.label}
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+
+      <div className="main">
+        <div className="topbar">
+          <div className="topbar-title">{topbarTitles[view]}</div>
+        </div>
+        <div className="content">
+          {renderView()}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
