@@ -1,9 +1,8 @@
 import os
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
-from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse, JSONResponse, HTMLResponse
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -40,11 +39,17 @@ frontend_html = Path("./frontend/index.html")
 @app.get("/")
 async def root():
     if frontend_html.exists():
-        return FileResponse(str(frontend_html))
+        content = frontend_html.read_text()
+        return HTMLResponse(content=content, headers={
+            "Content-Security-Policy": "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:;"
+        })
     return JSONResponse({"message": "WealthOS API attiva", "docs": "/docs"})
 
 @app.get("/{full_path:path}")
 async def catch_all(full_path: str):
     if frontend_html.exists():
-        return FileResponse(str(frontend_html))
+        content = frontend_html.read_text()
+        return HTMLResponse(content=content, headers={
+            "Content-Security-Policy": "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:;"
+        })
     return JSONResponse({"message": "WealthOS API attiva"})
