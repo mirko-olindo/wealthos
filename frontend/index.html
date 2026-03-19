@@ -1,649 +1,263 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>WealthOS — Portfolio Intelligence</title>
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    :root {
-      --bg: #f8f7f5; --bg2: #ffffff; --bg3: #f1f0ed;
-      --text: #1a1a18; --text2: #6b6a66; --text3: #9e9d99;
-      --border: rgba(0,0,0,0.08); --border2: rgba(0,0,0,0.14);
-      --green: #1D9E75; --red: #D85A30; --blue: #378ADD;
-      --amber: #BA7517; --purple: #7F77DD;
-      --r: 8px; --rl: 12px;
-      --sidebar-w: 220px;
-    }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); font-size: 14px; }
-    #root { display: flex; height: 100vh; overflow: hidden; }
-
-    /* Sidebar */
-    .sidebar { width: var(--sidebar-w); flex-shrink: 0; background: var(--bg2); border-right: 0.5px solid var(--border); display: flex; flex-direction: column; overflow-y: auto; }
-    .sidebar-logo { padding: 20px 16px 14px; border-bottom: 0.5px solid var(--border); }
-    .sidebar-logo .brand { font-size: 15px; font-weight: 600; letter-spacing: -0.02em; }
-    .sidebar-logo .sub { font-size: 11px; color: var(--text3); margin-top: 2px; }
-    .nav-section { padding: 12px 8px 4px; }
-    .nav-label { font-size: 10px; font-weight: 500; color: var(--text3); padding: 0 8px 4px; letter-spacing: 0.07em; text-transform: uppercase; display: block; }
-    .nav-item { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 6px; cursor: pointer; font-size: 13px; color: var(--text2); transition: background 0.1s; user-select: none; }
-    .nav-item:hover { background: var(--bg3); }
-    .nav-item.active { background: var(--bg3); color: var(--text); font-weight: 500; }
-    .nav-item svg { opacity: 0.65; flex-shrink: 0; }
-
-    /* Main */
-    .main { flex: 1; overflow: auto; display: flex; flex-direction: column; min-width: 0; }
-    .topbar { background: var(--bg2); border-bottom: 0.5px solid var(--border); padding: 11px 24px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; position: sticky; top: 0; z-index: 10; }
-    .topbar-title { font-size: 14px; font-weight: 500; }
-    .filters { display: flex; gap: 8px; }
-    .filter-select { font-size: 12px; padding: 5px 10px; border: 0.5px solid var(--border2); border-radius: var(--r); background: var(--bg3); color: var(--text); cursor: pointer; }
-    .content { padding: 20px 24px; flex: 1; }
-
-    /* KPI */
-    .kpi-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 12px; margin-bottom: 20px; }
-    .kpi-card { background: var(--bg3); border-radius: var(--r); padding: 14px 16px; }
-    .kpi-label { font-size: 10px; color: var(--text2); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.06em; }
-    .kpi-value { font-size: 22px; font-weight: 600; line-height: 1; letter-spacing: -0.03em; }
-    .kpi-sub { font-size: 11px; margin-top: 5px; color: var(--text3); }
-    .kpi-sub.pos { color: var(--green); }
-    .kpi-sub.neg { color: var(--red); }
-
-    /* Cards */
-    .card { background: var(--bg2); border: 0.5px solid var(--border); border-radius: var(--rl); padding: 16px 20px; }
-    .card-title { font-size: 10px; font-weight: 500; color: var(--text2); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 14px; }
-    .charts-row { display: grid; grid-template-columns: 1.3fr 0.7fr; gap: 16px; margin-bottom: 16px; }
-    .bottom-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-
-    /* Tables */
-    .data-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-    .data-table th { color: var(--text3); font-weight: 400; text-align: left; padding: 0 8px 10px 0; font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; }
-    .data-table td { padding: 7px 8px 7px 0; border-top: 0.5px solid var(--border); color: var(--text); }
-    .data-table td.pos { color: var(--green); }
-    .data-table td.neg { color: var(--red); }
-    .data-table tr:hover td { background: var(--bg3); }
-    .pill { display: inline-block; padding: 2px 7px; border-radius: 10px; font-size: 10px; font-weight: 500; }
-    .pill-liquid { background: #E1F5EE; color: #0F6E56; }
-    .pill-illiquid { background: #FAEEDA; color: #854F0B; }
-    .pill-alt { background: #EEEDFE; color: #534AB7; }
-    .pill-pe { background: #E6F1FB; color: #185FA5; }
-    .pill-pdf { background: #FAECE7; color: #993C1D; }
-    .pill-xls { background: #EAF3DE; color: #3B6D11; }
-    .pill-nav { background: #E6F1FB; color: #185FA5; }
-    .pill-pending { background: #FAEEDA; color: #854F0B; }
-    .pill-done { background: #E1F5EE; color: #0F6E56; }
-    .pill-failed { background: #FCEBEB; color: #A32D2D; }
-
-    /* Cash flow bars */
-    .cf-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
-    .cf-year { width: 34px; font-size: 11px; color: var(--text2); text-align: right; }
-    .cf-track { flex: 1; height: 14px; background: var(--bg3); border-radius: 3px; overflow: hidden; display: flex; }
-    .cf-in { height: 100%; background: var(--green); }
-    .cf-out { height: 100%; background: var(--red); opacity: 0.7; }
-    .cf-val { font-size: 10px; color: var(--text2); min-width: 56px; text-align: right; }
-
-    /* Upload */
-    .upload-zone { border: 1.5px dashed var(--border2); border-radius: var(--rl); padding: 24px; text-align: center; cursor: pointer; transition: background 0.15s; }
-    .upload-zone:hover, .upload-zone.drag { background: var(--bg3); border-color: var(--blue); }
-    .upload-icon { font-size: 24px; margin-bottom: 8px; }
-    .upload-text-main { font-size: 13px; font-weight: 500; margin-bottom: 4px; }
-    .upload-text-sub { font-size: 11px; color: var(--text3); }
-
-    /* Buttons */
-    .btn { padding: 6px 14px; border-radius: var(--r); border: 0.5px solid var(--border2); background: var(--bg3); color: var(--text); font-size: 12px; cursor: pointer; transition: background 0.1s; }
-    .btn:hover { background: var(--border); }
-    .btn-primary { background: var(--text); color: var(--bg2); border-color: transparent; }
-    .btn-primary:hover { opacity: 0.85; }
-    .btn-sm { padding: 4px 10px; font-size: 11px; }
-
-    /* Forms */
-    .form-row { margin-bottom: 12px; }
-    .form-label { display: block; font-size: 11px; color: var(--text2); margin-bottom: 4px; }
-    .form-input { width: 100%; padding: 7px 10px; border: 0.5px solid var(--border2); border-radius: var(--r); font-size: 13px; background: var(--bg2); color: var(--text); }
-    .form-input:focus { outline: none; border-color: var(--blue); }
-    .form-select { width: 100%; padding: 7px 10px; border: 0.5px solid var(--border2); border-radius: var(--r); font-size: 13px; background: var(--bg2); color: var(--text); }
-
-    /* Modal */
-    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.35); display: flex; align-items: center; justify-content: center; z-index: 100; }
-    .modal { background: var(--bg2); border-radius: var(--rl); padding: 24px; width: 480px; max-width: 95vw; max-height: 90vh; overflow-y: auto; }
-    .modal-title { font-size: 15px; font-weight: 500; margin-bottom: 18px; }
-    .modal-footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
-
-    /* Misc */
-    .legend-row { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; }
-    .legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text2); }
-    .legend-dot { width: 8px; height: 8px; border-radius: 2px; }
-    .empty-state { text-align: center; padding: 40px 20px; color: var(--text3); font-size: 13px; }
-    .tag { display: inline-block; padding: 3px 8px; border-radius: 5px; font-size: 10px; background: var(--bg3); color: var(--text2); border: 0.5px solid var(--border); margin: 2px; }
-    .status-dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; margin-right: 4px; }
-    .link-btn { background: none; border: none; color: var(--blue); font-size: 11px; cursor: pointer; padding: 0; }
-  </style>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>WealthOS</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f8f7f5;color:#1a1a18;font-size:14px}
+#app{display:flex;height:100vh;overflow:hidden}
+.sidebar{width:220px;flex-shrink:0;background:#fff;border-right:0.5px solid rgba(0,0,0,0.08);display:flex;flex-direction:column;overflow-y:auto}
+.sidebar-logo{padding:20px 16px 14px;border-bottom:0.5px solid rgba(0,0,0,0.08)}
+.brand{font-size:15px;font-weight:600;letter-spacing:-0.02em}
+.sub{font-size:11px;color:#9e9d99;margin-top:2px}
+.nav-section{padding:12px 8px 4px}
+.nav-label{font-size:10px;font-weight:500;color:#9e9d99;padding:0 8px 4px;letter-spacing:0.07em;text-transform:uppercase;display:block}
+.nav-item{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:6px;cursor:pointer;font-size:13px;color:#6b6a66;user-select:none}
+.nav-item:hover{background:#f1f0ed}
+.nav-item.active{background:#f1f0ed;color:#1a1a18;font-weight:500}
+.main{flex:1;overflow:auto;display:flex;flex-direction:column;min-width:0}
+.topbar{background:#fff;border-bottom:0.5px solid rgba(0,0,0,0.08);padding:11px 24px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;position:sticky;top:0;z-index:10}
+.topbar-title{font-size:14px;font-weight:500}
+.content{padding:20px 24px;flex:1}
+.kpi-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:20px}
+.kpi-card{background:#f1f0ed;border-radius:8px;padding:14px 16px}
+.kpi-label{font-size:10px;color:#6b6a66;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.06em}
+.kpi-value{font-size:22px;font-weight:600;line-height:1;letter-spacing:-0.03em}
+.kpi-sub{font-size:11px;margin-top:5px;color:#9e9d99}
+.card{background:#fff;border:0.5px solid rgba(0,0,0,0.08);border-radius:12px;padding:16px 20px}
+.card-title{font-size:10px;font-weight:500;color:#6b6a66;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:14px}
+.charts-row{display:grid;grid-template-columns:1.3fr 0.7fr;gap:16px;margin-bottom:16px}
+.bottom-row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.data-table{width:100%;border-collapse:collapse;font-size:12px}
+.data-table th{color:#9e9d99;font-weight:400;text-align:left;padding:0 8px 10px 0;font-size:10px;text-transform:uppercase;letter-spacing:0.05em}
+.data-table td{padding:7px 8px 7px 0;border-top:0.5px solid rgba(0,0,0,0.08);color:#1a1a18}
+.pos{color:#1D9E75}.neg{color:#D85A30}
+.pill{display:inline-block;padding:2px 7px;border-radius:10px;font-size:10px;font-weight:500}
+.cf-row{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.cf-year{width:34px;font-size:11px;color:#6b6a66;text-align:right}
+.cf-track{flex:1;height:14px;background:#f1f0ed;border-radius:3px;overflow:hidden;display:flex}
+.cf-in{height:100%;background:#1D9E75}.cf-out{height:100%;background:#D85A30;opacity:0.7}
+.cf-val{font-size:10px;color:#6b6a66;min-width:56px;text-align:right}
+.legend-row{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:10px}
+.legend-item{display:flex;align-items:center;gap:5px;font-size:11px;color:#6b6a66}
+.legend-dot{width:8px;height:8px;border-radius:2px}
+.empty{text-align:center;padding:40px 20px;color:#9e9d99;font-size:13px}
+.upload-zone{border:1.5px dashed rgba(0,0,0,0.14);border-radius:12px;padding:24px;text-align:center;cursor:pointer}
+.upload-zone:hover{background:#f1f0ed}
+.btn{padding:6px 14px;border-radius:8px;border:0.5px solid rgba(0,0,0,0.14);background:#f1f0ed;color:#1a1a18;font-size:12px;cursor:pointer}
+.btn-primary{background:#1a1a18;color:#fff;border-color:transparent}
+.form-row{margin-bottom:12px}
+.form-label{display:block;font-size:11px;color:#6b6a66;margin-bottom:4px}
+.form-input,.form-select{width:100%;padding:7px 10px;border:0.5px solid rgba(0,0,0,0.14);border-radius:8px;font-size:13px;background:#fff;color:#1a1a18}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.35);display:flex;align-items:center;justify-content:center;z-index:100}
+.modal{background:#fff;border-radius:12px;padding:24px;width:480px;max-width:95vw;max-height:90vh;overflow-y:auto}
+.modal-title{font-size:15px;font-weight:500;margin-bottom:18px}
+.modal-footer{display:flex;justify-content:flex-end;gap:8px;margin-top:20px}
+.tag{display:inline-block;padding:3px 8px;border-radius:5px;font-size:10px;background:#f1f0ed;color:#6b6a66;border:0.5px solid rgba(0,0,0,0.08);margin:2px}
+.sbadge{padding:2px 8px;border-radius:4px;font-size:10px;font-weight:500}
+</style>
 </head>
 <body>
-<div id="root"></div>
-
-<script type="text/babel">
-const { useState, useEffect, useRef, useCallback } = React;
-const API = "";  // stesso origine, cambia in http://localhost:8000 se dev separato
-
-// ─── API helpers ─────────────────────────────────────────────────────────────
-const api = {
-  get: (path) => fetch(API + "/api" + path).then(r => r.json()),
-  post: (path, body) => fetch(API + "/api" + path, { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify(body) }).then(r => r.json()),
-  del: (path) => fetch(API + "/api" + path, { method: "DELETE" }).then(r => r.json()),
-  upload: (path, formData) => fetch(API + "/api" + path, { method: "POST", body: formData }).then(r => r.json()),
-};
-
-// ─── Icons ────────────────────────────────────────────────────────────────────
-const Icon = ({ name, size=16 }) => {
-  const icons = {
-    dashboard: <><rect x="1" y="9" width="4" height="6" rx="1" fill="currentColor"/><rect x="6" y="5" width="4" height="10" rx="1" fill="currentColor"/><rect x="11" y="1" width="4" height="14" rx="1" fill="currentColor"/></>,
-    vehicles: <><rect x="2" y="4" width="12" height="9" rx="1.5" stroke="currentColor" strokeWidth="1.2" fill="none"/><path d="M5 4V3a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1" stroke="currentColor" strokeWidth="1.2" fill="none"/></>,
-    documents: <><path d="M4 2h6l4 4v8a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z" stroke="currentColor" strokeWidth="1.2" fill="none"/><path d="M10 2v4h4" stroke="currentColor" strokeWidth="1.2" fill="none"/></>,
-    cashflow: <><path d="M2 10L6 6l4 3 4-5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" fill="none"/></>,
-    upload: <><path d="M8 3v10M3 8l5-5 5 5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" fill="none"/></>,
-    plus: <><path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></>,
-    refresh: <><path d="M13 3A6 6 0 1 0 14 9" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" fill="none"/><path d="M14 3v4h-4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" fill="none"/></>,
-    trash: <><path d="M3 5h10M8 8v5M6 8v5M5 5V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1M6 14h4a1 1 0 0 0 1-1V5H5v8a1 1 0 0 0 1 1z" stroke="currentColor" strokeWidth="1.2" fill="none" strokeLinecap="round"/></>,
-  };
-  return <svg width={size} height={size} viewBox="0 0 16 16" fill="none">{icons[name]}</svg>;
-};
-
-// ─── Formatters ───────────────────────────────────────────────────────────────
-const fmt = {
-  eur: v => v == null ? "—" : "€ " + Number(v).toLocaleString("it-IT", {minimumFractionDigits:0, maximumFractionDigits:0}),
-  pct: v => v == null ? "—" : v.toFixed(1) + "%",
-  mult: v => v == null ? "—" : v.toFixed(2) + "×",
-  date: v => v ? new Date(v).toLocaleDateString("it-IT") : "—",
-};
-
-// ─── Charts ───────────────────────────────────────────────────────────────────
-function NavChart({ data }) {
-  const ref = useRef(null);
-  const chartRef = useRef(null);
-  useEffect(() => {
-    if (!data || !data.length) return;
-    if (chartRef.current) chartRef.current.destroy();
-    // Aggrega per data (somma tutti i veicoli)
-    const byDate = {};
-    data.forEach(p => { byDate[p.date] = (byDate[p.date] || 0) + p.nav; });
-    const labels = Object.keys(byDate).sort();
-    const values = labels.map(d => byDate[d]);
-    chartRef.current = new Chart(ref.current, {
-      type: "line",
-      data: {
-        labels: labels.map(d => d.substring(0,7)),
-        datasets: [{ data: values, borderColor: "#378ADD", backgroundColor: "rgba(55,138,221,0.07)", fill: true, tension: 0.4, pointRadius: 2.5, pointBackgroundColor: "#378ADD", borderWidth: 2 }]
-      },
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: {
-          x: { ticks: { color: "#9e9d99", font: { size: 10 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 8 }, grid: { color: "rgba(0,0,0,0.04)" } },
-          y: { ticks: { color: "#9e9d99", font: { size: 10 }, callback: v => "€" + (v/1e6).toFixed(1) + "M" }, grid: { color: "rgba(0,0,0,0.04)" } }
-        }
-      }
-    });
-    return () => chartRef.current?.destroy();
-  }, [data]);
-  if (!data?.length) return <div className="empty-state">Nessun dato NAV disponibile</div>;
-  return <div style={{position:"relative", height:200}}><canvas ref={ref}/></div>;
-}
-
-function AllocChart({ data }) {
-  const ref = useRef(null);
-  const chartRef = useRef(null);
-  const colors = ["#378ADD","#1D9E75","#BA7517","#7F77DD","#888780","#D85A30","#5DCAA5"];
-  useEffect(() => {
-    if (!data || !data.length) return;
-    if (chartRef.current) chartRef.current.destroy();
-    chartRef.current = new Chart(ref.current, {
-      type: "doughnut",
-      data: {
-        labels: data.map(d => d.asset_class),
-        datasets: [{ data: data.map(d => d.nav_value), backgroundColor: colors, borderWidth: 0, hoverOffset: 4 }]
-      },
-      options: {
-        responsive: true, maintainAspectRatio: false, cutout: "68%",
-        plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ctx.label + ": " + fmt.eur(ctx.parsed) + " (" + ctx.dataset.data.reduce((a,b)=>a+b,0) > 0 ? (ctx.parsed / ctx.dataset.data.reduce((a,b)=>a+b,0) * 100).toFixed(1) : 0) + "%)" } } }
-      }
-    });
-    return () => chartRef.current?.destroy();
-  }, [data]);
-  if (!data?.length) return <div className="empty-state">Nessun dato</div>;
-  return (
-    <div>
-      <div className="legend-row">
-        {data.map((d,i) => <div key={i} className="legend-item"><div className="legend-dot" style={{background: colors[i % colors.length]}}/>{d.asset_class} {d.percentage}%</div>)}
-      </div>
-      <div style={{position:"relative", height:140}}><canvas ref={ref}/></div>
+<div id="app">
+  <div class="sidebar">
+    <div class="sidebar-logo"><div class="brand">WealthOS</div><div class="sub">Portfolio Intelligence</div></div>
+    <div class="nav-section">
+      <span class="nav-label">Overview</span>
+      <div class="nav-item active" onclick="nav('dashboard',this)">Dashboard</div>
+      <div class="nav-item" onclick="nav('cashflow',this)">Cash Flow</div>
     </div>
-  );
-}
-
-// ─── Views ────────────────────────────────────────────────────────────────────
-
-function DashboardView() {
-  const [kpi, setKpi] = useState(null);
-  const [alloc, setAlloc] = useState([]);
-  const [cf, setCf] = useState([]);
-  const [navHistory, setNavHistory] = useState([]);
-  const [vehicles, setVehicles] = useState([]);
-
-  useEffect(() => {
-    api.get("/dashboard/kpi").then(setKpi).catch(()=>{});
-    api.get("/dashboard/allocation").then(setAlloc).catch(()=>{});
-    api.get("/dashboard/cashflow").then(setCf).catch(()=>{});
-    api.get("/dashboard/nav-history").then(setNavHistory).catch(()=>{});
-    api.get("/dashboard/vehicles-summary").then(setVehicles).catch(()=>{});
-  }, []);
-
-  const maxCf = Math.max(...cf.map(r => r.inflows + r.outflows), 1);
-
-  return (
-    <div>
-      <div className="kpi-grid">
-        <div className="kpi-card"><div className="kpi-label">NAV Totale</div><div className="kpi-value">{kpi ? fmt.eur(kpi.total_nav) : "—"}</div><div className="kpi-sub">{kpi?.total_vehicles} veicoli attivi</div></div>
-        <div className="kpi-card"><div className="kpi-label">Capitale Investito</div><div className="kpi-value">{kpi ? fmt.eur(kpi.total_invested) : "—"}</div><div className="kpi-sub">Capital calls totali</div></div>
-        <div className="kpi-card"><div className="kpi-label">Distribuzioni</div><div className="kpi-value">{kpi ? fmt.eur(kpi.total_distributions) : "—"}</div><div className="kpi-sub pos">Ricevute totali</div></div>
-        <div className="kpi-card"><div className="kpi-label">TVPI Medio</div><div className="kpi-value">{kpi ? fmt.mult(kpi.avg_tvpi) : "—"}</div><div className="kpi-sub">{kpi?.total_documents} documenti caricati</div></div>
-      </div>
-
-      <div className="charts-row">
-        <div className="card"><div className="card-title">Storico NAV portafoglio</div><NavChart data={navHistory}/></div>
-        <div className="card"><div className="card-title">Allocazione per asset class</div><AllocChart data={alloc}/></div>
-      </div>
-
-      <div className="bottom-row">
-        <div className="card">
-          <div className="card-title">Cash flow annuale</div>
-          {cf.length ? cf.map(r => (
-            <div key={r.year} className="cf-row">
-              <div className="cf-year">{r.year}</div>
-              <div className="cf-track">
-                <div className="cf-in" style={{width: (r.inflows/maxCf*100)+"%"}}/>
-                <div className="cf-out" style={{width: (r.outflows/maxCf*100)+"%"}}/>
-              </div>
-              <div className="cf-val" style={{color: r.net >= 0 ? "var(--green)" : "var(--red)"}}>{r.net >= 0 ? "+" : ""}{fmt.eur(r.net)}</div>
-            </div>
-          )) : <div className="empty-state">Nessun dato</div>}
-          <div className="legend-row" style={{marginTop:10}}>
-            <div className="legend-item"><div className="legend-dot" style={{background:"var(--green)"}}/> Distribuzioni</div>
-            <div className="legend-item"><div className="legend-dot" style={{background:"var(--red)"}}/> Capital call</div>
-          </div>
-        </div>
-
-        <div className="card">
-          <div className="card-title">Performance per veicolo</div>
-          {vehicles.length ? (
-            <table className="data-table">
-              <thead><tr><th>Veicolo</th><th>NAV</th><th>TVPI</th><th>IRR</th></tr></thead>
-              <tbody>
-                {vehicles.slice(0,6).map(v => (
-                  <tr key={v.id}>
-                    <td>{v.name}</td>
-                    <td>{fmt.eur(v.latest_nav)}</td>
-                    <td className={v.tvpi >= 1 ? "pos" : "neg"}>{fmt.mult(v.tvpi)}</td>
-                    <td className={v.irr >= 0 ? "pos" : "neg"}>{v.irr != null ? v.irr.toFixed(1)+"%" : "—"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          ) : <div className="empty-state">Aggiungi veicoli per vedere le performance</div>}
-        </div>
-      </div>
+    <div class="nav-section">
+      <span class="nav-label">Portafoglio</span>
+      <div class="nav-item" onclick="nav('vehicles',this)">Veicoli</div>
     </div>
-  );
-}
-
-function VehiclesView() {
-  const [vehicles, setVehicles] = useState([]);
-  const [showModal, setShowModal] = useState(false);
-  const [form, setForm] = useState({ name:"", asset_class:"", manager:"", vehicle_type:"", currency:"EUR", vintage_year:"", commitment:"", notes:"" });
-
-  const load = () => api.get("/vehicles/").then(setVehicles).catch(()=>{});
-  useEffect(() => { load(); }, []);
-
-  const save = async () => {
-    const body = {...form, vintage_year: form.vintage_year ? parseInt(form.vintage_year) : null, commitment: form.commitment ? parseFloat(form.commitment) : null };
-    await api.post("/vehicles/", body);
-    setShowModal(false);
-    setForm({ name:"", asset_class:"", manager:"", vehicle_type:"", currency:"EUR", vintage_year:"", commitment:"", notes:"" });
-    load();
-  };
-
-  const del = async (id) => { if (confirm("Eliminare questo veicolo?")) { await api.del("/vehicles/"+id); load(); } };
-
-  const assetColors = { "Private Equity":"pill-pe", "Real Estate":"pill-liquid", "Hedge Fund":"pill-alt", "Bond":"pill-illiquid" };
-
-  return (
-    <div>
-      <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16}}>
-        <div style={{fontSize:13, color:"var(--text2)"}}>{vehicles.length} veicoli nel portafoglio</div>
-        <button className="btn btn-primary" onClick={()=>setShowModal(true)}>+ Nuovo veicolo</button>
-      </div>
-
-      <div className="card">
-        {vehicles.length ? (
-          <table className="data-table">
-            <thead><tr><th>Nome</th><th>Asset class</th><th>Manager</th><th>Valuta</th><th>Vintage</th><th>Commitment</th><th></th></tr></thead>
-            <tbody>
-              {vehicles.map(v => (
-                <tr key={v.id}>
-                  <td style={{fontWeight:500}}>{v.name}</td>
-                  <td><span className={"pill " + (assetColors[v.asset_class] || "pill-alt")}>{v.asset_class || "—"}</span></td>
-                  <td>{v.manager || "—"}</td>
-                  <td>{v.currency}</td>
-                  <td>{v.vintage_year || "—"}</td>
-                  <td>{fmt.eur(v.commitment)}</td>
-                  <td><button className="link-btn" onClick={()=>del(v.id)}>Elimina</button></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : <div className="empty-state">Nessun veicolo ancora. Crea il primo!</div>}
-      </div>
-
-      {showModal && (
-        <div className="modal-overlay" onClick={e=>e.target===e.currentTarget&&setShowModal(false)}>
-          <div className="modal">
-            <div className="modal-title">Nuovo veicolo di investimento</div>
-            {[
-              ["Nome *", "name", "text", null],
-              ["Asset class", "asset_class", "select", ["Private Equity","Real Estate","Hedge Fund","Bond","Equity","Cash","Altro"]],
-              ["Manager / Gestore", "manager", "text", null],
-              ["Tipo veicolo", "vehicle_type", "select", ["fund","direct","bond","listed","other"]],
-              ["Valuta", "currency", "select", ["EUR","USD","GBP","CHF"]],
-              ["Anno vintage", "vintage_year", "number", null],
-              ["Commitment (€)", "commitment", "number", null],
-            ].map(([label, key, type, opts]) => (
-              <div key={key} className="form-row">
-                <label className="form-label">{label}</label>
-                {opts ? (
-                  <select className="form-select" value={form[key]} onChange={e=>setForm({...form,[key]:e.target.value})}>
-                    <option value="">— Seleziona —</option>
-                    {opts.map(o=><option key={o} value={o}>{o}</option>)}
-                  </select>
-                ) : (
-                  <input className="form-input" type={type} value={form[key]} onChange={e=>setForm({...form,[key]:e.target.value})} />
-                )}
-              </div>
-            ))}
-            <div className="form-row">
-              <label className="form-label">Note</label>
-              <textarea className="form-input" rows={2} value={form.notes} onChange={e=>setForm({...form,notes:e.target.value})}/>
-            </div>
-            <div className="modal-footer">
-              <button className="btn" onClick={()=>setShowModal(false)}>Annulla</button>
-              <button className="btn btn-primary" onClick={save} disabled={!form.name}>Salva</button>
-            </div>
-          </div>
-        </div>
-      )}
+    <div class="nav-section">
+      <span class="nav-label">Repository</span>
+      <div class="nav-item" onclick="nav('documents',this)">Documenti</div>
     </div>
-  );
+  </div>
+  <div class="main">
+    <div class="topbar"><div class="topbar-title" id="tb"></div></div>
+    <div class="content" id="ct"></div>
+  </div>
+</div>
+<script>
+var charts=[];
+var titles={dashboard:'Dashboard portafoglio',cashflow:'Cash Flow',vehicles:'Veicoli',documents:'Documenti'};
+var colors=['#378ADD','#1D9E75','#BA7517','#7F77DD','#888780','#D85A30'];
+
+function fmt(v,t){
+  if(v==null)return'—';
+  if(t==='m')return v.toFixed(2)+'x';
+  return'€ '+Number(v).toLocaleString('it-IT',{maximumFractionDigits:0});
 }
 
-function DocumentsView() {
-  const [docs, setDocs] = useState([]);
-  const [vehicles, setVehicles] = useState([]);
-  const [drag, setDrag] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [selectedVehicle, setSelectedVehicle] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("");
-  const fileRef = useRef(null);
+async function get(p){try{var r=await fetch('/api'+p);return await r.json();}catch(e){return null;}}
 
-  const load = () => {
-    api.get("/documents/").then(setDocs).catch(()=>{});
-    api.get("/vehicles/").then(setVehicles).catch(()=>{});
-  };
-  useEffect(() => { load(); const t = setInterval(load, 5000); return ()=>clearInterval(t); }, []);
+function killCharts(){charts.forEach(function(c){try{c.destroy();}catch(e){}});charts=[];}
 
-  const uploadFile = async (file) => {
-    setUploading(true);
-    const fd = new FormData();
-    fd.append("file", file);
-    if (selectedVehicle) fd.append("vehicle_id", selectedVehicle);
-    if (selectedCategory) fd.append("doc_category", selectedCategory);
-    fd.append("auto_extract", "true");
-    await api.upload("/documents/upload", fd);
-    setUploading(false);
-    load();
-  };
-
-  const handleDrop = e => { e.preventDefault(); setDrag(false); [...e.dataTransfer.files].forEach(uploadFile); };
-  const handleFile = e => [...e.target.files].forEach(uploadFile);
-  const reExtract = async (id) => { await fetch(API+"/api/documents/"+id+"/extract",{method:"POST"}); load(); };
-  const delDoc = async (id) => { if(confirm("Eliminare?")) { await api.del("/documents/"+id); load(); } };
-
-  const statusColor = { pending:"pill-pending", processing:"pill-pending", done:"pill-done", failed:"pill-failed", skipped:"pill-illiquid" };
-  const fileColor = { pdf:"pill-pdf", xlsx:"pill-xls", xls:"pill-xls", csv:"pill-xls", jpg:"pill-pe", png:"pill-pe" };
-  const categories = ["nav_statement","capital_call","distribution","report","statement","other"];
-
-  return (
-    <div>
-      <div className="bottom-row" style={{marginBottom:16}}>
-        <div className="card">
-          <div className="card-title">Carica documenti</div>
-          <div style={{display:"flex", gap:8, marginBottom:10}}>
-            <select className="filter-select" style={{flex:1}} value={selectedVehicle} onChange={e=>setSelectedVehicle(e.target.value)}>
-              <option value="">Veicolo (opzionale)</option>
-              {vehicles.map(v=><option key={v.id} value={v.id}>{v.name}</option>)}
-            </select>
-            <select className="filter-select" style={{flex:1}} value={selectedCategory} onChange={e=>setSelectedCategory(e.target.value)}>
-              <option value="">Categoria (opzionale)</option>
-              {categories.map(c=><option key={c} value={c}>{c}</option>)}
-            </select>
-          </div>
-          <div
-            className={"upload-zone" + (drag?" drag":"")}
-            onDragOver={e=>{e.preventDefault();setDrag(true)}}
-            onDragLeave={()=>setDrag(false)}
-            onDrop={handleDrop}
-            onClick={()=>fileRef.current?.click()}
-          >
-            <div className="upload-icon">↑</div>
-            <div className="upload-text-main">{uploading ? "Caricamento in corso..." : "Trascina file qui o clicca"}</div>
-            <div className="upload-text-sub">PDF, Excel, CSV, immagini — estrazione automatica con Claude AI</div>
-          </div>
-          <input ref={fileRef} type="file" multiple style={{display:"none"}} accept=".pdf,.xlsx,.xls,.csv,.jpg,.jpeg,.png" onChange={handleFile}/>
-          <div style={{marginTop:10}}>
-            {["Capital Call","NAV Statement","Distribution","Report","Statement"].map(t=><span key={t} className="tag">{t}</span>)}
-          </div>
-        </div>
-
-        <div className="card">
-          <div className="card-title">Repository — {docs.length} documenti</div>
-          <div style={{display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8}}>
-            {[
-              ["Totali", docs.length, "var(--text)"],
-              ["Estratti", docs.filter(d=>d.extraction_status==="done").length, "var(--green)"],
-              ["In attesa", docs.filter(d=>["pending","processing"].includes(d.extraction_status)).length, "var(--amber)"],
-              ["Falliti", docs.filter(d=>d.extraction_status==="failed").length, "var(--red)"],
-              ["PDF", docs.filter(d=>d.file_type==="pdf").length, "var(--text2)"],
-              ["Excel/CSV", docs.filter(d=>["xlsx","xls","csv"].includes(d.file_type)).length, "var(--text2)"],
-            ].map(([label, val, color]) => (
-              <div key={label} className="kpi-card" style={{padding:"10px 12px"}}>
-                <div className="kpi-label">{label}</div>
-                <div style={{fontSize:18, fontWeight:600, color}}>{val}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <div className="card">
-        {docs.length ? (
-          <table className="data-table">
-            <thead><tr><th>File</th><th>Tipo</th><th>Categoria</th><th>Veicolo</th><th>Data doc</th><th>Stato</th><th>Caricato</th><th></th></tr></thead>
-            <tbody>
-              {docs.map(d => {
-                const veh = vehicles.find(v=>v.id===d.vehicle_id);
-                return (
-                  <tr key={d.id}>
-                    <td style={{maxWidth:200, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap"}} title={d.original_filename}>{d.original_filename}</td>
-                    <td><span className={"pill " + (fileColor[d.file_type]||"pill-alt")}>{d.file_type?.toUpperCase()}</span></td>
-                    <td>{d.doc_category ? <span className="tag">{d.doc_category}</span> : "—"}</td>
-                    <td>{veh?.name || "—"}</td>
-                    <td>{fmt.date(d.doc_date)}</td>
-                    <td><span className={"pill " + (statusColor[d.extraction_status]||"")}>{d.extraction_status}</span></td>
-                    <td>{fmt.date(d.uploaded_at)}</td>
-                    <td style={{display:"flex", gap:8}}>
-                      <button className="link-btn" onClick={()=>reExtract(d.id)} title="Ri-estrai"><Icon name="refresh" size={13}/></button>
-                      <button className="link-btn" style={{color:"var(--red)"}} onClick={()=>delDoc(d.id)} title="Elimina"><Icon name="trash" size={13}/></button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        ) : <div className="empty-state">Nessun documento ancora. Carica il primo!</div>}
-      </div>
-    </div>
-  );
+function nav(view,el){
+  killCharts();
+  document.querySelectorAll('.nav-item').forEach(function(i){i.classList.remove('active');});
+  if(el)el.classList.add('active');
+  document.getElementById('tb').textContent=titles[view]||view;
+  document.getElementById('ct').innerHTML='<div class="empty">Caricamento...</div>';
+  if(view==='dashboard')dash();
+  else if(view==='cashflow')cf();
+  else if(view==='vehicles')veh();
+  else if(view==='documents')docs();
 }
 
-function CashFlowView() {
-  const [cf, setCf] = useState([]);
-  const [dists, setDists] = useState([]);
-  const [ccs, setCcs] = useState([]);
-  const [vehicles, setVehicles] = useState([]);
+async function dash(){
+  var kpi=await get('/dashboard/kpi');
+  var alloc=await get('/dashboard/allocation');
+  var cfdata=await get('/dashboard/cashflow');
+  var navh=await get('/dashboard/nav-history');
+  var vs=await get('/dashboard/vehicles-summary');
+  var ct=document.getElementById('ct');
+  ct.innerHTML='<div class="kpi-grid">'
+    +'<div class="kpi-card"><div class="kpi-label">NAV Totale</div><div class="kpi-value">'+fmt(kpi&&kpi.total_nav)+'</div><div class="kpi-sub">'+(kpi&&kpi.total_vehicles||0)+' veicoli</div></div>'
+    +'<div class="kpi-card"><div class="kpi-label">Capitale Investito</div><div class="kpi-value">'+fmt(kpi&&kpi.total_invested)+'</div></div>'
+    +'<div class="kpi-card"><div class="kpi-label">Distribuzioni</div><div class="kpi-value">'+fmt(kpi&&kpi.total_distributions)+'</div></div>'
+    +'<div class="kpi-card"><div class="kpi-label">TVPI Medio</div><div class="kpi-value">'+(kpi&&kpi.avg_tvpi?kpi.avg_tvpi.toFixed(2)+'x':'—')+'</div></div>'
+    +'</div>'
+    +'<div class="charts-row">'
+    +'<div class="card"><div class="card-title">Storico NAV</div><div style="position:relative;height:200px"><canvas id="nc"></canvas></div></div>'
+    +'<div class="card"><div class="card-title">Allocazione</div>'
+    +'<div class="legend-row" id="aleg"></div>'
+    +'<div style="position:relative;height:140px"><canvas id="ac"></canvas></div></div>'
+    +'</div>'
+    +'<div class="bottom-row">'
+    +'<div class="card"><div class="card-title">Cash flow</div><div id="cfb"></div>'
+    +'<div class="legend-row" style="margin-top:8px"><div class="legend-item"><div class="legend-dot" style="background:#1D9E75"></div>Distribuzioni</div><div class="legend-item"><div class="legend-dot" style="background:#D85A30"></div>Capital call</div></div>'
+    +'</div>'
+    +'<div class="card"><div class="card-title">Performance veicoli</div>'
+    +'<table class="data-table"><thead><tr><th>Veicolo</th><th>NAV</th><th>TVPI</th><th>IRR</th></tr></thead><tbody id="vtb"></tbody></table>'
+    +'</div></div>';
 
-  useEffect(() => {
-    api.get("/dashboard/cashflow").then(setCf).catch(()=>{});
-    api.get("/vehicles/").then(async vs => {
-      setVehicles(vs);
-      const allDists = [], allCcs = [];
-      for (const v of vs) {
-        const d = await api.get("/vehicles/"+v.id+"/distributions");
-        const c = await api.get("/vehicles/"+v.id+"/capital-calls");
-        d.forEach(x=>allDists.push({...x, vehicle_name:v.name}));
-        c.forEach(x=>allCcs.push({...x, vehicle_name:v.name}));
-      }
-      setDists(allDists.sort((a,b)=>b.payment_date.localeCompare(a.payment_date)));
-      setCcs(allCcs.sort((a,b)=>b.call_date.localeCompare(a.call_date)));
-    }).catch(()=>{});
-  }, []);
-
-  return (
-    <div>
-      <div className="bottom-row" style={{marginBottom:16}}>
-        {cf.map(r => (
-          <div key={r.year} className="kpi-card" style={{display:"flex", justifyContent:"space-between", alignItems:"center"}}>
-            <div>
-              <div className="kpi-label">{r.year}</div>
-              <div className="kpi-value" style={{fontSize:16, color: r.net>=0?"var(--green)":"var(--red)"}}>{r.net>=0?"+":""}{fmt.eur(r.net)}</div>
-            </div>
-            <div style={{textAlign:"right", fontSize:11, color:"var(--text3)"}}>
-              <div>↑ {fmt.eur(r.inflows)}</div>
-              <div>↓ {fmt.eur(r.outflows)}</div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div className="bottom-row">
-        <div className="card">
-          <div className="card-title">Distribuzioni ricevute</div>
-          {dists.length ? (
-            <table className="data-table">
-              <thead><tr><th>Data</th><th>Veicolo</th><th>Importo</th><th>Tipo</th></tr></thead>
-              <tbody>
-                {dists.slice(0,20).map(d=>(
-                  <tr key={d.id}>
-                    <td>{fmt.date(d.payment_date)}</td>
-                    <td>{d.vehicle_name}</td>
-                    <td className="pos">{fmt.eur(d.amount)}</td>
-                    <td>{d.distribution_type || "—"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          ) : <div className="empty-state">Nessuna distribuzione</div>}
-        </div>
-
-        <div className="card">
-          <div className="card-title">Capital call</div>
-          {ccs.length ? (
-            <table className="data-table">
-              <thead><tr><th>Data</th><th>Veicolo</th><th>Importo</th><th>Scadenza</th></tr></thead>
-              <tbody>
-                {ccs.slice(0,20).map(c=>(
-                  <tr key={c.id}>
-                    <td>{fmt.date(c.call_date)}</td>
-                    <td>{c.vehicle_name}</td>
-                    <td className="neg">{fmt.eur(c.amount)}</td>
-                    <td>{fmt.date(c.due_date)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          ) : <div className="empty-state">Nessuna capital call</div>}
-        </div>
-      </div>
-    </div>
-  );
+  if(navh&&navh.length){
+    var bd={};navh.forEach(function(p){bd[p.date]=(bd[p.date]||0)+p.nav;});
+    var lbs=Object.keys(bd).sort();
+    var ch=new Chart(document.getElementById('nc'),{type:'line',data:{labels:lbs.map(function(d){return d.substring(0,7);}),datasets:[{data:lbs.map(function(d){return bd[d];}),borderColor:'#378ADD',backgroundColor:'rgba(55,138,221,0.07)',fill:true,tension:0.4,pointRadius:2,borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#9e9d99',font:{size:10},maxTicksLimit:8},grid:{color:'rgba(0,0,0,0.04)'}},y:{ticks:{color:'#9e9d99',font:{size:10},callback:function(v){return'€'+(v/1e6).toFixed(1)+'M';}},grid:{color:'rgba(0,0,0,0.04)'}}}}});
+    charts.push(ch);
+  }
+  if(alloc&&alloc.length){
+    var leg=document.getElementById('aleg');
+    leg.innerHTML=alloc.map(function(a,i){return'<div class="legend-item"><div class="legend-dot" style="background:'+colors[i%colors.length]+'"></div>'+a.asset_class+' '+a.percentage+'%</div>';}).join('');
+    var ac=new Chart(document.getElementById('ac'),{type:'doughnut',data:{labels:alloc.map(function(d){return d.asset_class;}),datasets:[{data:alloc.map(function(d){return d.nav_value;}),backgroundColor:colors,borderWidth:0,hoverOffset:4}]},options:{responsive:true,maintainAspectRatio:false,cutout:'68%',plugins:{legend:{display:false}}}});
+    charts.push(ac);
+  }
+  if(cfdata&&cfdata.length){
+    var mx=Math.max.apply(null,cfdata.map(function(r){return r.inflows+r.outflows;}));if(!mx)mx=1;
+    document.getElementById('cfb').innerHTML=cfdata.map(function(r){return'<div class="cf-row"><div class="cf-year">'+r.year+'</div><div class="cf-track"><div class="cf-in" style="width:'+(r.inflows/mx*100)+'%"></div><div class="cf-out" style="width:'+(r.outflows/mx*100)+'%"></div></div><div class="cf-val" style="color:'+(r.net>=0?'#1D9E75':'#D85A30')+'">'+(r.net>=0?'+':'')+fmt(r.net)+'</div></div>';}).join('');
+  }
+  if(vs&&vs.length){
+    document.getElementById('vtb').innerHTML=vs.slice(0,6).map(function(v){return'<tr><td>'+v.name+'</td><td>'+fmt(v.latest_nav)+'</td><td class="'+(v.tvpi>=1?'pos':'neg')+'">'+(v.tvpi?v.tvpi.toFixed(2)+'x':'—')+'</td><td class="'+(v.irr>=0?'pos':'neg')+'">'+(v.irr!=null?v.irr.toFixed(1)+'%':'—')+'</td></tr>';}).join('');
+  }
 }
 
-// ─── App shell ────────────────────────────────────────────────────────────────
-const VIEWS = [
-  { id: "dashboard", label: "Dashboard", icon: "dashboard", section: "Overview" },
-  { id: "cashflow", label: "Cash Flow", icon: "cashflow", section: "Overview" },
-  { id: "vehicles", label: "Veicoli", icon: "vehicles", section: "Portafoglio" },
-  { id: "documents", label: "Documenti", icon: "documents", section: "Repository" },
-  { id: "upload", label: "Carica", icon: "upload", section: "Repository" },
-];
-
-export default function App() {
-  const [view, setView] = useState("dashboard");
-
-  const sections = [...new Set(VIEWS.map(v=>v.section))];
-
-  const renderView = () => {
-    if (view === "dashboard") return <DashboardView/>;
-    if (view === "vehicles") return <VehiclesView/>;
-    if (view === "documents" || view === "upload") return <DocumentsView/>;
-    if (view === "cashflow") return <CashFlowView/>;
-    return null;
-  };
-
-  const topbarTitles = { dashboard:"Dashboard portafoglio", cashflow:"Cash Flow & Distribuzioni", vehicles:"Veicoli di investimento", documents:"Repository documenti", upload:"Repository documenti" };
-
-  return (
-    <div id="root">
-      <div className="sidebar">
-        <div className="sidebar-logo">
-          <div className="brand">WealthOS</div>
-          <div className="sub">Portfolio Intelligence</div>
-        </div>
-        {sections.map(section => (
-          <div key={section} className="nav-section">
-            <span className="nav-label">{section}</span>
-            {VIEWS.filter(v=>v.section===section).map(v=>(
-              <div key={v.id} className={"nav-item" + (view===v.id?" active":"")} onClick={()=>setView(v.id)}>
-                <Icon name={v.icon} size={15}/>
-                {v.label}
-              </div>
-            ))}
-          </div>
-        ))}
-      </div>
-
-      <div className="main">
-        <div className="topbar">
-          <div className="topbar-title">{topbarTitles[view]}</div>
-        </div>
-        <div className="content">
-          {renderView()}
-        </div>
-      </div>
-    </div>
-  );
+async function cf(){
+  var cfdata=await get('/dashboard/cashflow');
+  var vs=await get('/dashboard/vehicles-summary');
+  var ct=document.getElementById('ct');
+  var dists=[],ccs=[];
+  if(vs)for(var i=0;i<vs.length;i++){
+    var d=await get('/vehicles/'+vs[i].id+'/distributions');
+    var c=await get('/vehicles/'+vs[i].id+'/capital-calls');
+    if(d)d.forEach(function(x){dists.push({name:vs[i].name,date:x.payment_date,amount:x.amount,type:x.distribution_type});});
+    if(c)c.forEach(function(x){ccs.push({name:vs[i].name,date:x.call_date,amount:x.amount,due:x.due_date});});
+  }
+  ct.innerHTML='<div class="bottom-row" style="margin-bottom:16px">'
+    +(cfdata||[]).map(function(r){return'<div class="kpi-card" style="display:flex;justify-content:space-between;align-items:center"><div><div class="kpi-label">'+r.year+'</div><div class="kpi-value" style="font-size:16px;color:'+(r.net>=0?'#1D9E75':'#D85A30')+'">'+(r.net>=0?'+':'')+fmt(r.net)+'</div></div><div style="font-size:11px;color:#9e9d99;text-align:right"><div>↑ '+fmt(r.inflows)+'</div><div>↓ '+fmt(r.outflows)+'</div></div></div>';}).join('')
+    +'</div><div class="bottom-row">'
+    +'<div class="card"><div class="card-title">Distribuzioni</div>'
+    +(dists.length?'<table class="data-table"><thead><tr><th>Data</th><th>Veicolo</th><th>Importo</th></tr></thead><tbody>'+dists.slice(0,15).map(function(d){return'<tr><td>'+d.date+'</td><td>'+d.name+'</td><td class="pos">'+fmt(d.amount)+'</td></tr>';}).join('')+'</tbody></table>':'<div class="empty">Nessuna distribuzione</div>')
+    +'</div>'
+    +'<div class="card"><div class="card-title">Capital call</div>'
+    +(ccs.length?'<table class="data-table"><thead><tr><th>Data</th><th>Veicolo</th><th>Importo</th></tr></thead><tbody>'+ccs.slice(0,15).map(function(c){return'<tr><td>'+c.date+'</td><td>'+c.name+'</td><td class="neg">'+fmt(c.amount)+'</td></tr>';}).join('')+'</tbody></table>':'<div class="empty">Nessuna capital call</div>')
+    +'</div></div>';
 }
 
-ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+async function veh(){
+  var vs=await get('/vehicles/');
+  var ct=document.getElementById('ct');
+  ct.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px"><div style="font-size:13px;color:#6b6a66">'+(vs||[]).length+' veicoli</div><button class="btn btn-primary" onclick="addVeh()">+ Nuovo veicolo</button></div>'
+    +'<div class="card">'
+    +(vs&&vs.length?'<table class="data-table"><thead><tr><th>Nome</th><th>Asset class</th><th>Manager</th><th>Valuta</th><th>Vintage</th><th>Commitment</th></tr></thead><tbody>'
+    +vs.map(function(v){return'<tr><td style="font-weight:500">'+v.name+'</td><td>'+( v.asset_class||'—')+'</td><td>'+(v.manager||'—')+'</td><td>'+v.currency+'</td><td>'+(v.vintage_year||'—')+'</td><td>'+fmt(v.commitment)+'</td></tr>';}).join('')+'</tbody></table>'
+    :'<div class="empty">Nessun veicolo. Clicca "Nuovo veicolo".</div>')
+    +'</div><div id="vm"></div>';
+}
+
+function addVeh(){
+  document.getElementById('vm').innerHTML='<div class="modal-overlay" onclick="if(event.target===this)this.innerHTML=\'\'"><div class="modal"><div class="modal-title">Nuovo veicolo</div>'
+    +'<div class="form-row"><label class="form-label">Nome *</label><input class="form-input" id="vn" type="text"/></div>'
+    +'<div class="form-row"><label class="form-label">Asset class</label><select class="form-select" id="va"><option value="">—</option><option>Private Equity</option><option>Real Estate</option><option>Hedge Fund</option><option>Bond</option><option>Equity</option><option>Cash</option></select></div>'
+    +'<div class="form-row"><label class="form-label">Manager</label><input class="form-input" id="vmg" type="text"/></div>'
+    +'<div class="form-row"><label class="form-label">Valuta</label><select class="form-select" id="vc"><option>EUR</option><option>USD</option><option>GBP</option></select></div>'
+    +'<div class="form-row"><label class="form-label">Vintage</label><input class="form-input" id="vv" type="number"/></div>'
+    +'<div class="form-row"><label class="form-label">Commitment</label><input class="form-input" id="vco" type="number"/></div>'
+    +'<div class="modal-footer"><button class="btn" onclick="document.getElementById(\'vm\').innerHTML=\'\'">Annulla</button><button class="btn btn-primary" onclick="saveVeh()">Salva</button></div>'
+    +'</div></div>';
+}
+
+async function saveVeh(){
+  var n=document.getElementById('vn').value;if(!n)return;
+  await fetch('/api/vehicles/',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:n,asset_class:document.getElementById('va').value||null,manager:document.getElementById('vmg').value||null,currency:document.getElementById('vc').value||'EUR',vintage_year:document.getElementById('vv').value?parseInt(document.getElementById('vv').value):null,commitment:document.getElementById('vco').value?parseFloat(document.getElementById('vco').value):null})});
+  document.getElementById('vm').innerHTML='';veh();
+}
+
+async function docs(){
+  var d=await get('/documents/');
+  var vs=await get('/vehicles/');
+  var ct=document.getElementById('ct');
+  var vm={};if(vs)vs.forEach(function(v){vm[v.id]=v.name;});
+  var sc={done:'background:#E1F5EE;color:#0F6E56',pending:'background:#FAEEDA;color:#854F0B',processing:'background:#FAEEDA;color:#854F0B',failed:'background:#FCEBEB;color:#A32D2D'};
+  var fc={pdf:'background:#FAECE7;color:#993C1D',xlsx:'background:#EAF3DE;color:#3B6D11',xls:'background:#EAF3DE;color:#3B6D11',csv:'background:#EAF3DE;color:#3B6D11'};
+  ct.innerHTML='<div class="bottom-row" style="margin-bottom:16px">'
+    +'<div class="card"><div class="card-title">Carica documenti</div>'
+    +'<div style="display:flex;gap:8px;margin-bottom:10px">'
+    +'<select class="form-select" id="uv" style="flex:1"><option value="">Veicolo (opz.)</option>'+(vs||[]).map(function(v){return'<option value="'+v.id+'">'+v.name+'</option>';}).join('')+'</select>'
+    +'<select class="form-select" id="uc" style="flex:1"><option value="">Categoria (opz.)</option><option>nav_statement</option><option>capital_call</option><option>distribution</option><option>report</option><option>other</option></select>'
+    +'</div>'
+    +'<div class="upload-zone" onclick="document.getElementById(\'fi\').click()" ondragover="event.preventDefault()" ondrop="event.preventDefault();handleUp(event.dataTransfer.files)">'
+    +'<div style="font-size:22px;margin-bottom:8px">↑</div>'
+    +'<div style="font-size:13px;font-weight:500;margin-bottom:4px" id="us">Trascina o clicca per caricare</div>'
+    +'<div style="font-size:11px;color:#9e9d99">PDF, Excel, CSV — estrazione con Claude AI</div>'
+    +'</div>'
+    +'<input type="file" id="fi" multiple accept=".pdf,.xlsx,.xls,.csv,.jpg,.png" style="display:none" onchange="handleUp(this.files)"/>'
+    +'<div style="margin-top:10px"><span class="tag">Capital Call</span><span class="tag">NAV Statement</span><span class="tag">Distribution</span></div>'
+    +'</div>'
+    +'<div class="card"><div class="card-title">Repository — '+(d||[]).length+' documenti</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">'
+    +[['Totali',(d||[]).length,'#1a1a18'],['Estratti',(d||[]).filter(function(x){return x.extraction_status==='done';}).length,'#1D9E75'],['Falliti',(d||[]).filter(function(x){return x.extraction_status==='failed';}).length,'#D85A30']].map(function(r){return'<div class="kpi-card" style="padding:10px 12px"><div class="kpi-label">'+r[0]+'</div><div style="font-size:18px;font-weight:600;color:'+r[2]+'">'+r[1]+'</div></div>';}).join('')
+    +'</div></div></div>'
+    +'<div class="card">'
+    +(d&&d.length?'<table class="data-table"><thead><tr><th>File</th><th>Tipo</th><th>Categoria</th><th>Veicolo</th><th>Stato</th><th></th></tr></thead><tbody>'
+    +d.map(function(x){return'<tr><td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+x.original_filename+'">'+x.original_filename+'</td><td><span class="sbadge" style="'+(fc[x.file_type]||'background:#f1f0ed;color:#333')+'">'+(x.file_type||'').toUpperCase()+'</span></td><td>'+(x.doc_category?'<span class="tag">'+x.doc_category+'</span>':'—')+'</td><td>'+(vm[x.vehicle_id]||'—')+'</td><td><span class="sbadge" style="'+(sc[x.extraction_status]||'background:#f1f0ed;color:#333')+'">'+x.extraction_status+'</span></td><td><button style="background:none;border:none;cursor:pointer;color:#185FA5;font-size:11px" onclick="rex('+x.id+')">↻</button></td></tr>';}).join('')+'</tbody></table>'
+    :'<div class="empty">Nessun documento. Carica il primo!</div>')
+    +'</div>';
+}
+
+async function handleUp(files){
+  if(!files||!files.length)return;
+  var us=document.getElementById('us');if(us)us.textContent='Caricamento...';
+  for(var i=0;i<files.length;i++){
+    var fd=new FormData();fd.append('file',files[i]);
+    var vid=document.getElementById('uv');if(vid&&vid.value)fd.append('vehicle_id',vid.value);
+    var cat=document.getElementById('uc');if(cat&&cat.value)fd.append('doc_category',cat.value);
+    fd.append('auto_extract','true');
+    await fetch('/api/documents/upload',{method:'POST',body:fd});
+  }
+  if(us)us.textContent='Trascina o clicca per caricare';
+  docs();
+}
+
+async function rex(id){await fetch('/api/documents/'+id+'/extract',{method:'POST'});docs();}
+
+nav('dashboard',document.querySelector('.nav-item'));
 </script>
 </body>
 </html>
